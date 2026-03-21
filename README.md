@@ -149,17 +149,6 @@ O app utiliza autenticação via Supabase. As credenciais são as mesmas do sist
 ### Metas
 - Definir e acompanhar metas financeiras
 
-## 🔧 Configuração
-
-### Variáveis de Ambiente
-
-As configurações do Supabase estão em `src/integrations/supabase/client.ts`:
-
-```typescript
-const SUPABASE_URL = "https://hnolptsgmaigpbbfgilm.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
-```
-
 ## 🎨 Componentes UI
 
 O app possui componentes UI reutilizáveis:
