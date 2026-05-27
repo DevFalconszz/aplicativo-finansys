@@ -10,14 +10,27 @@ import { formatCurrency } from '../lib/utils';
 import { NFEDialog } from '../components/nfe/NFEDialog';
 
 interface NFe {
-  id_nfe: number;
+  id_nfe: number | string;
+  id?: string;
   numero: string;
   serie: string;
   valor: number;
-  data_emissao: string;
-  xml: string;
-  id_lancamento: number;
+  data_emissao?: string;
+  data?: string;
+  xml?: string;
+  id_lancamento?: number | string | null;
 }
+
+const normalizeNFe = (item: any): NFe => ({
+  ...item,
+  id_nfe: item.id_nfe ?? item.id,
+  numero: item.numero ?? '',
+  serie: item.serie ?? '',
+  valor: Number(item.valor ?? 0),
+  data_emissao: item.data_emissao ?? item.data ?? '',
+  xml: item.xml ?? '',
+  id_lancamento: item.id_lancamento ?? null,
+});
 
 export default function NFe() {
   const [nfes, setNfes] = useState<NFe[]>([]);
@@ -31,13 +44,21 @@ export default function NFe() {
   const fetchNFes = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('nfe')
+      let { data, error } = await (supabase.from('nfe') as any)
         .select('*')
         .order('data_emissao', { ascending: false });
 
+      if (error) {
+        const fallback = await (supabase.from('nfe') as any)
+          .select('*')
+          .order('data', { ascending: false });
+
+        data = fallback.data;
+        error = fallback.error;
+      }
+
       if (error) throw error;
-      setNfes(data || []);
+      setNfes((data || []).map(normalizeNFe));
     } catch (error) {
       console.error('Erro ao carregar NFes:', error);
       Alert.alert("Erro", "Não foi possível carregar as NFes");
@@ -50,7 +71,7 @@ export default function NFe() {
     fetchNFes();
   }, [fetchNFes]);
 
-  const handleDelete = (id: number, numero: string) => {
+  const handleDelete = (id: number | string, numero: string) => {
     Alert.alert(
       "Confirmar exclusão",
       `Deseja realmente excluir a NFe ${numero}? Esta ação não pode ser desfeita.`,
@@ -61,10 +82,17 @@ export default function NFe() {
           style: "destructive",
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('nfe')
+              let { error } = await (supabase.from('nfe') as any)
                 .delete()
                 .eq('id_nfe', id);
+
+              if (error) {
+                const fallback = await (supabase.from('nfe') as any)
+                  .delete()
+                  .eq('id', id);
+
+                error = fallback.error;
+              }
 
               if (error) throw error;
               Alert.alert("Sucesso", "NFe excluída com sucesso");
@@ -91,7 +119,7 @@ export default function NFe() {
 
   const totalValor = nfes.reduce((sum, nfe) => sum + Number(nfe.valor || 0), 0);
   const nfesEsteMes = nfes.filter(nfe => {
-    const nfeDate = new Date(nfe.data_emissao);
+    const nfeDate = new Date(nfe.data_emissao || nfe.data || '');
     const currentDate = new Date();
     return nfeDate.getMonth() === currentDate.getMonth() && 
            nfeDate.getFullYear() === currentDate.getFullYear();
@@ -173,7 +201,7 @@ export default function NFe() {
                   </View>
                   <View style={styles.dateRow}>
                     <Calendar size={12} color="#6B7280" />
-                    <Text style={styles.nfeDate}> {new Date(item.data_emissao).toLocaleDateString('pt-BR')}</Text>
+                    <Text style={styles.nfeDate}> {new Date(item.data_emissao || item.data || '').toLocaleDateString('pt-BR')}</Text>
                   </View>
                   <Text style={styles.nfeValue}>{formatCurrency(Number(item.valor))}</Text>
                 </View>

@@ -12,8 +12,11 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { X, Search, FileText } from "lucide-react-native";
+import { X, FileText, Upload, Trash2 } from "lucide-react-native";
 import { supabase } from "../../integrations/supabase/client";
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 
 interface ComprovanteDialogProps {
   visible: boolean;
@@ -23,7 +26,9 @@ interface ComprovanteDialogProps {
     id_comprovante: number;
     tipo: string;
     data_pagamento: string;
-    id_lancamento: number | null;
+    id_lancamento: string | number | null;
+    arquivo?: string;
+    arquivo_url?: string;
   } | null;
 }
 
@@ -31,6 +36,7 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
   const [tipo, setTipo] = useState("");
   const [dataPagamento, setDataPagamento] = useState("");
   const [idLancamento, setIdLancamento] = useState("");
+  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,8 +50,63 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
         setDataPagamento(new Date().toISOString().split('T')[0]);
         setIdLancamento("");
       }
+      setSelectedFile(null);
     }
   }, [comprovante, visible]);
+
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled) {
+        setSelectedFile(result);
+      }
+    } catch (err) {
+      console.error("Erro ao selecionar arquivo:", err);
+      Alert.alert("Erro", "Não foi possível selecionar o arquivo.");
+    }
+  };
+
+  const uploadFile = async (userId: string) => {
+    if (!selectedFile || selectedFile.canceled) return null;
+
+    const asset = selectedFile.assets[0];
+    const fileExt = asset.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const filePath = asset.uri;
+
+    try {
+      // Usando FileSystem normal, ignorando o warning por enquanto para garantir que a função exista
+      const base64 = await FileSystem.readAsStringAsync(filePath, {
+        encoding: 'base64',
+      });
+
+      const { data, error } = await supabase.storage
+        .from('comprovantes')
+        .upload(fileName, decode(base64), {
+          contentType: asset.mimeType ?? 'application/octet-stream',
+          upsert: true
+        });
+
+      if (error) {
+        console.error("Erro Supabase Storage:", error);
+        throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('comprovantes')
+        .getPublicUrl(fileName);
+
+      return { fileName, publicUrl };
+    } catch (error: any) {
+      console.error("Erro detalhado no upload:", error);
+      const errorMessage = error.message || error.error_description || "Erro desconhecido no Storage";
+      throw new Error(`Upload: ${errorMessage}`);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!tipo || !dataPagamento) {
@@ -59,32 +120,56 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { data: userData } = await supabase
-        .from('usuario')
+      // Buscar o id_usuario numérico para o sistema legado
+      const { data: userData } = await (supabase.from('usuario') as any)
         .select('id_usuario')
         .eq('auth_id', user.id)
         .single();
 
-      if (!userData) throw new Error("Usuário não encontrado");
+      let fileInfo = null;
+      if (selectedFile) {
+        try {
+          fileInfo = await uploadFile(user.id);
+        } catch (uploadError: any) {
+          throw uploadError;
+        }
+      }
 
-      const comprovanteData = {
+      // Preparar os dados para salvar
+      const comprovanteData: any = {
         tipo,
         data_pagamento: dataPagamento,
-        id_lancamento: idLancamento ? parseInt(idLancamento) : null,
-        id_usuario: userData.id_usuario,
       };
 
+      // Só envia id_lancamento se houver valor, caso contrário envia null
+      const trimmedId = idLancamento.trim();
+      if (trimmedId) {
+        // Se parece um número, tenta enviar como número, senão como string (UUID)
+        comprovanteData.id_lancamento = /^\d+$/.test(trimmedId) ? parseInt(trimmedId) : trimmedId;
+      } else {
+        comprovanteData.id_lancamento = null;
+      }
+
+      if (userData?.id_usuario) {
+        comprovanteData.id_usuario = userData.id_usuario;
+      }
+
+      if (fileInfo) {
+        comprovanteData.arquivo = fileInfo.fileName;
+        comprovanteData.arquivo_url = fileInfo.fileName; // Usamos o path relativo como URL interna
+      }
+
+      console.log("Enviando dados para tabela comprovante:", comprovanteData);
+
       if (comprovante) {
-        const { error } = await supabase
-          .from('comprovante')
+        const { error } = await (supabase.from('comprovante') as any)
           .update(comprovanteData)
           .eq('id_comprovante', comprovante.id_comprovante);
 
         if (error) throw error;
         Alert.alert("Sucesso", "Comprovante atualizado com sucesso");
       } else {
-        const { error } = await supabase
-          .from('comprovante')
+        const { error } = await (supabase.from('comprovante') as any)
           .insert([comprovanteData]);
 
         if (error) throw error;
@@ -93,9 +178,11 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
 
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar comprovante:", error);
-      Alert.alert("Erro", "Não foi possível salvar os dados do comprovante");
+      const details = error.details || error.hint || "";
+      const message = error.message || "Erro desconhecido";
+      Alert.alert("Erro ao Salvar", `${message}\n${details}`);
     } finally {
       setLoading(false);
     }
@@ -129,7 +216,32 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.form}>
+          <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Arquivo do Comprovante</Text>
+              <TouchableOpacity 
+                style={[styles.filePicker, selectedFile && styles.filePickerSelected]} 
+                onPress={handlePickDocument}
+              >
+                {selectedFile && !selectedFile.canceled ? (
+                  <View style={styles.fileSelectedInfo}>
+                    <FileText size={24} color="#2563EB" />
+                    <Text style={styles.fileName} numberOfLines={1}>
+                      {selectedFile.assets[0].name}
+                    </Text>
+                    <TouchableOpacity onPress={() => setSelectedFile(null)}>
+                      <Trash2 size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.filePickerPlaceholder}>
+                    <Upload size={24} color="#9CA3AF" />
+                    <Text style={styles.filePickerText}>Selecionar arquivo...</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Tipo de Comprovante *</Text>
               <View style={styles.tiposContainer}>
@@ -171,19 +283,9 @@ export function ComprovanteDialog({ visible, onClose, onSuccess, comprovante }: 
                 style={styles.input}
                 value={idLancamento}
                 onChangeText={setIdLancamento}
-                placeholder="Ex: 123"
-                keyboardType="numeric"
+                placeholder="Ex: 123 ou UUID"
               />
             </View>
-
-            {!comprovante && (
-              <View style={styles.infoBox}>
-                <FileText size={20} color="#2563EB" />
-                <Text style={styles.infoText}>
-                  Após registrar, você poderá visualizar o arquivo se ele estiver disponível no sistema.
-                </Text>
-              </View>
-            )}
           </ScrollView>
 
           <View style={styles.footer}>
@@ -244,7 +346,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
@@ -259,6 +361,42 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     color: "#1F2937",
+  },
+  filePicker: {
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    padding: 20,
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filePickerSelected: {
+    borderColor: "#2563EB",
+    borderStyle: "solid",
+    backgroundColor: "#EFF6FF",
+  },
+  filePickerPlaceholder: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  filePickerText: {
+    color: "#9CA3AF",
+    fontSize: 16,
+  },
+  fileSelectedInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    gap: 12,
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1F2937",
+    fontWeight: "500",
   },
   tiposContainer: {
     flexDirection: "row",
@@ -284,20 +422,6 @@ const styles = StyleSheet.create({
   },
   tipoTextActive: {
     color: "#FFFFFF",
-  },
-  infoBox: {
-    flexDirection: "row",
-    backgroundColor: "#EFF6FF",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    gap: 10,
-    marginTop: 8,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#1E40AF",
   },
   footer: {
     flexDirection: "row",

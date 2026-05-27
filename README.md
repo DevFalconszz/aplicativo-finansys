@@ -1,130 +1,223 @@
-<div align="center">
-  <img src="./assets/icon.png" width="128" height="128" alt="Finansys Mobile Logo" />
-  <h1>Finansys Mobile</h1>
-  <p><strong>Gestão Financeira Completa na Palma da Sua Mão</strong></p>
+# Finansys Mobile
 
-  [![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
-  [![Expo](https://img.shields.io/badge/Expo-SDK_52-000020?logo=expo&logoColor=white)](https://expo.dev/)
-  [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Lucide Icons](https://img.shields.io/badge/Icons-Lucide-FDE047?logo=lucide&logoColor=black)](https://lucide.dev/)
-</div>
+Aplicativo móvel do sistema Finansys de Gestão Financeira, desenvolvido com React Native e Expo.
 
----
+## 🚀 Tecnologias
 
-## 📱 Sobre o Projeto
+- **React Native** - Framework para desenvolvimento mobile
+- **Expo** - Plataforma de desenvolvimento React Native
+- **Expo Router** - Navegação baseada em arquivos
+- **Supabase** - Backend e autenticação
+- **TypeScript** - Tipagem estática
+- **Lucide React Native** - Ícones
 
-O **Finansys Mobile** é a evolução mobile do ecossistema de gestão financeira **Finansys**. Desenvolvido com o que há de mais moderno no desenvolvimento híbrido (**React Native** + **Expo SDK 52**), o aplicativo foi projetado para oferecer agilidade, segurança e controle total sobre as finanças corporativas e pessoais, diretamente do smartphone.
+## 📋 Pré-requisitos
 
-Este projeto representa a migração integral da plataforma web para o ambiente mobile, garantindo que usuários, administradores e contadores tenham acesso às suas ferramentas críticas com uma experiência de usuário (UX) otimizada para telas touch.
+- Node.js 18+ 
+- npm ou bun
+- Expo CLI
+- Expo Go (para testar no dispositivo móvel)
 
-## ✨ Funcionalidades em Destaque
+## 🛠️ Instalação
 
-### 📊 Dashboard Estratégico
-*   **Visão 360°:** Acompanhamento instantâneo de receitas, despesas, saldo consolidado e dívidas.
-*   **Alertas Inteligentes:** Notificações visuais para dívidas vencidas e metas pendentes.
-*   **Timeline de Atividades:** Lista em tempo real das movimentações financeiras mais recentes.
+1. **Instale as dependências:**
 
-### 💰 Gestão Financeira Robusta
-*   **Fluxo de Caixa:** Registro rápido de entradas e saídas com categorização detalhada.
-*   **Controle de Lançamentos:** Interface intuitiva para inserção de dados financeiros com validação rigorosa.
-*   **Gestão de Dívidas:** Acompanhamento de contas a pagar com status automatizados (Pago, Pendente, Vencido).
+```bash
+cd Finansys-Mobile
+npm install
+# ou
+bun install
+```
 
-### 📄 Módulos Especializados
-*   **NFe & Tributos:** Espaço dedicado para o gerenciamento de Notas Fiscais Eletrônicas e obrigações fiscais.
-*   **Comprovantes Digitais:** Visualização e organização de comprovantes de pagamento de forma segura.
-*   **Relatórios & Metas:** Ferramentas de análise para planejamento estratégico e acompanhamento de objetivos financeiros.
+2. **Inicie o servidor de desenvolvimento:**
 
-## 🔐 Segurança e Níveis de Acesso (RBAC)
+```bash
+npm start
+# ou
+bun start
+# ou
+npx expo start
+```
 
-O **Finansys Mobile** utiliza um sistema avançado de Controle de Acesso Baseado em Funções (Role-Based Access Control), integrado diretamente com o **Supabase Auth**:
+3. **Execute no dispositivo:**
 
-| Função | Permissões |
-| :--- | :--- |
-| **Admin** | Acesso irrestrito a todas as funcionalidades e configurações globais. |
-| **Analista** | Gestão completa de operações, lançamentos e relatórios (exceto configurações). |
-| **Caixa** | Operações focadas em entradas, saídas e gestão de comprovantes. |
-| **Contador** | Acesso especializado a módulos fiscais, NFe, Impostos e Relatórios. |
-| **User** | Acesso básico de visualização ao Dashboard principal. |
+- **iOS:** Pressione `i` no terminal ou use o Expo Go no simulador iOS
+- **Android:** Pressione `a` no terminal ou use o Expo Go no emulador Android
+- **Dispositivo físico:** Escaneie o QR code com o Expo Go
 
-## 🛠️ Stack Tecnológica
-
-*   **Core:** [React Native](https://reactnative.dev/) (v0.76)
-*   **Framework:** [Expo](https://expo.dev/) (SDK 52)
-*   **Navegação:** [Expo Router](https://expo.github.io/router) (File-based routing)
-*   **Backend & Auth:** [Supabase](https://supabase.com/) (PostgreSQL + GoTrue)
-*   **Linguagem:** [TypeScript](https://www.typescriptlang.org/) (Strict Mode)
-*   **Ícones:** [Lucide React Native](https://lucide.dev/)
-*   **Persistência:** [AsyncStorage](https://react-native-async-storage.github.io/async-storage/)
-
-## 🚀 Guia de Instalação
-
-### Pré-requisitos
-*   **Node.js** (v18.0.0 ou superior)
-*   Gerenciador de pacotes **npm** ou **bun**
-*   Aplicativo **Expo Go** instalado no dispositivo (iOS/Android)
-
-### Passo a Passo
-
-1.  **Clone o repositório:**
-    ```bash
-    git clone https://github.com/DevFalconszz/aplicativo-finansys.git
-    cd aplicativo-finansys
-    ```
-
-2.  **Instale as dependências:**
-    ```bash
-    npm install
-    # ou
-    bun install
-    ```
-
-3.  **Configuração de Ambiente:**
-    Crie um arquivo `.env` na raiz do projeto baseado no `.env.example`:
-    ```env
-    EXPO_PUBLIC_SUPABASE_URL=sua_url_do_supabase
-    EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_do_supabase
-    ```
-
-4.  **Inicie o Servidor de Desenvolvimento:**
-    ```bash
-    npx expo start
-    ```
-
-5.  **Execução:**
-    Escaneie o QR Code exibido no terminal utilizando a câmera do seu celular (iOS) ou o aplicativo **Expo Go** (Android).
-
-## 📁 Arquitetura do Projeto
-
-O projeto segue uma estrutura organizada para facilitar a manutenção e escalabilidade:
+## 📁 Estrutura do Projeto
 
 ```
 Finansys-Mobile/
-├── app/                 # Rotas e navegação (Expo Router)
-├── assets/              # Imagens, ícones e splash screen
-├── scripts/             # Scripts utilitários de automação
+├── app/                      # Rotas (Expo Router)
+│   ├── (app)/               # Rotas autenticadas
+│   │   ├── index.tsx        # Dashboard
+│   │   ├── lancamentos.tsx
+│   │   ├── caixa.tsx
+│   │   ├── dividas.tsx
+│   │   ├── nfe.tsx
+│   │   ├── comprovantes.tsx
+│   │   ├── impostos.tsx
+│   │   ├── relatorios.tsx
+│   │   ├── metas.tsx
+│   │   ├── configuracoes.tsx
+│   │   └── confirmar-emails.tsx
+│   ├── index.tsx            # Login
+│   └── _layout.tsx          # Layout principal
 ├── src/
-│   ├── components/      # Componentes de UI reutilizáveis
-│   ├── hooks/           # Hooks personalizados (Auth, UserRole)
-│   ├── integrations/    # Configurações de API (Supabase Client)
-│   ├── lib/             # Funções utilitárias e helpers
-│   └── screens/         # Implementação das telas da aplicação
-└── ...                  # Arquivos de configuração (tsconfig, babel, etc.)
+│   ├── components/
+│   │   ├── layout/
+│   │   │   └── AppLayout.tsx
+│   │   └── ui/
+│   │       ├── button.tsx
+│   │       ├── card.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       ├── badge.tsx
+│   │       ├── skeleton.tsx
+│   │       └── scroll-area.tsx
+│   ├── hooks/
+│   │   ├── useAuth.tsx
+│   │   └── useUserRole.tsx
+│   ├── screens/
+│   │   ├── Login.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── Lancamentos.tsx
+│   │   ├── Caixa.tsx
+│   │   ├── Dividas.tsx
+│   │   ├── NFe.tsx
+│   │   ├── Comprovantes.tsx
+│   │   ├── Relatorios.tsx
+│   │   ├── Metas.tsx
+│   │   ├── Impostos.tsx
+│   │   ├── Settings.tsx
+│   │   └── ConfirmEmails.tsx
+│   ├── integrations/
+│   │   └── supabase/
+│   │       ├── client.ts
+│   │       └── types.ts
+│   └── lib/
+│       └── utils.ts
+└── assets/                   # Imagens e ícones
 ```
+
+## 🔐 Autenticação
+
+O app utiliza autenticação via Supabase. As credenciais são as mesmas do sistema web.
+
+### Níveis de Acesso
+
+- **admin:** Acesso completo a todas as funcionalidades
+- **analista:** Acesso à maioria das funcionalidades (exceto configurações)
+- **caixa:** Acesso limitado (Dashboard, Lançamentos, Caixa, Comprovantes)
+- **contador:** Acesso específico (Dashboard, NFe, Impostos, Relatórios)
+- **user:** Acesso básico (apenas Dashboard)
+
+## 📱 Funcionalidades
+
+### Dashboard
+- Visão geral das finanças
+- Receitas, despesas e saldo atual
+- Dívidas totais e vencidas
+- Movimentações recentes
+
+### Caixa
+- Registrar novas movimentações (receitas/despesas)
+- Visualizar histórico de movimentações
+- Filtrar por tipo e categoria
+
+### Lançamentos
+- Registrar gastos e receitas
+- Acompanhar lançamentos pendentes
+
+### Dívidas
+- Gerenciar contas a pagar
+- Visualizar dívidas vencidas e pendentes
+
+### NFe
+- Gerenciar notas fiscais eletrônicas
+
+### Comprovantes
+- Visualizar comprovantes de pagamento
+
+### Impostos
+- Calcular e gerenciar impostos
+
+### Relatórios
+- Visualizar relatórios financeiros
+
+### Metas
+- Definir e acompanhar metas financeiras
+
+## 🔧 Configuração
+
+### Variáveis de Ambiente
+
+As configurações do Supabase estão em `src/integrations/supabase/client.ts`:
+
+```typescript
+const SUPABASE_URL = "https://hnolptsgmaigpbbfgilm.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+```
+
+## 🎨 Componentes UI
+
+O app possui componentes UI reutilizáveis:
+
+- **Button:** Botões com variantes (default, destructive, outline, etc.)
+- **Card:** Cards para conteúdo
+- **Input:** Campos de entrada de texto
+- **Label:** Rótulos para formulários
+- **Badge:** Etiquetas para status
+- **Skeleton:** Loading placeholder
+
+## 📝 Observações
+
+### Assets
+
+Os arquivos de imagem (icon.png, splash.png, adaptive-icon.png, favicon.png) são placeholders. 
+Substitua-os pelos assets reais do Finansys:
+
+- `assets/icon.png` - Ícone do app (1024x1024)
+- `assets/splash.png` - Tela de splash (1024x1024)
+- `assets/adaptive-icon.png` - Ícone adaptativo Android (1024x1024)
+- `assets/favicon.png` - Favicon web (48x48)
+
+### Telas Implementadas
+
+Todas as telas do sistema web foram migradas para React Native:
+
+- ✅ Login
+- ✅ Dashboard
+- ✅ Lançamentos
+- ✅ Caixa
+- ✅ Dívidas
+- ✅ NFe
+- ✅ Comprovantes
+- ✅ Impostos
+- ✅ Relatórios
+- ✅ Metas
+- ✅ Configurações
+- ✅ Confirmar Emails
+
+## 🐛 Problemas Conhecidos
+
+1. **Assets placeholder:** Os ícones e imagens são placeholders SVG. Converta para PNG antes de usar em produção.
+
+2. **Telas genéricas:** Algumas telas (NFe, Comprovantes, etc.) estão com layout genérico. Implemente a lógica específica conforme necessário.
+
+## 📄 Licença
+
+Este projeto é uma tradução mobile do sistema Finansys web.
 
 ## 🤝 Contribuição
 
-Contribuições são fundamentais para a evolução do Finansys! 
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/MinhaFeature`)
+5. Abra um Pull Request
 
-1.  Faça um **Fork** do projeto.
-2.  Crie uma **Branch** para sua Feature (`git checkout -b feature/NovaFeature`).
-3.  Faça o **Commit** de suas alterações (`git commit -m 'feat: Adiciona nova funcionalidade'`).
-4.  Faça o **Push** para a Branch (`git push origin feature/NovaFeature`).
-5.  Abra um **Pull Request**.
+## 📞 Suporte
 
----
-
-<div align="center">
-  <p>Desenvolvido com excelência técnica pela equipe <strong>Finansys</strong></p>
-  <p>Copyright © 2024 Finansys Mobile - Todos os direitos reservados</p>
-</div>
+Para suporte, entre em contato com a equipe de desenvolvimento.

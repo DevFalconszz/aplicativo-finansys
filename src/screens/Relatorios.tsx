@@ -8,7 +8,9 @@ import {
   ActivityIndicator, 
   Alert,
   Modal,
-  Dimensions
+  Dimensions,
+  Platform,
+  Linking
 } from 'react-native';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card, CardContent } from '../components/ui/card';
@@ -30,8 +32,10 @@ import {
   CreditCard
 } from 'lucide-react-native';
 import { supabase } from '../integrations/supabase/client';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 
@@ -68,6 +72,7 @@ export default function Relatorios() {
   const [refreshing, setRefreshing] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedPeriodo, setSelectedPeriodo] = useState('mes_atual');
+  const [downloading, setDownloading] = useState<number | null>(null);
   const [newRelatorio, setNewRelatorio] = useState({
     tipo: 'financeiro',
     periodo: 'mes_atual',
@@ -241,6 +246,291 @@ export default function Relatorios() {
     }
   };
 
+  const generateCSVContent = (data: RelatorioData, tipo: string, periodo: string): string => {
+    let csv = 'Relatório Finansys\n';
+    csv += `Tipo: ${tipo}\n`;
+    csv += `Período: ${periodo}\n`;
+    csv += `Gerado em: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+    
+    csv += 'RESUMO FINANCEIRO\n';
+    csv += 'Descrição;Valor\n';
+    csv += `Total Receitas;${data.totalReceitas.toFixed(2)}\n`;
+    csv += `Total Despesas;${data.totalDespesas.toFixed(2)}\n`;
+    csv += `Total Dívidas;${data.totalDividas.toFixed(2)}\n`;
+    csv += `Saldo;${data.saldo.toFixed(2)}\n\n`;
+    
+    if (Object.keys(data.transacoesPorCategoria).length > 0) {
+      csv += 'DISTRIBUIÇÃO POR CATEGORIA\n';
+      csv += 'Categoria;Valor\n';
+      Object.entries(data.transacoesPorCategoria)
+        .sort(([,a], [,b]) => b - a)
+        .forEach(([cat, val]) => {
+          csv += `${cat};${val.toFixed(2)}\n`;
+        });
+      csv += '\n';
+    }
+    
+    if (data.evolucaoMensal.length > 0) {
+      csv += 'EVOLUÇÃO MENSAL\n';
+      csv += 'Mês;Receitas;Despesas;Dívidas\n';
+      data.evolucaoMensal.forEach(item => {
+        csv += `${item.mes};${item.receitas.toFixed(2)};${item.despesas.toFixed(2)};${item.dividas.toFixed(2)}\n`;
+      });
+    }
+    
+    return csv;
+  };
+
+  const generateExcelContent = (data: RelatorioData, tipo: string, periodo: string): string => {
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
+    html += '<table>';
+    html += `<tr><td colspan="2"><b>Relatório Finansys - ${tipo}</b></td></tr>`;
+    html += `<tr><td>Período:</td><td>${periodo}</td></tr>`;
+    html += `<tr><td>Gerado em:</td><td>${new Date().toLocaleDateString('pt-BR')}</td></tr>`;
+    html += '<tr><td></td><td></td></tr>';
+    
+    html += '<tr><td colspan="2"><b>RESUMO FINANCEIRO</b></td></tr>';
+    html += '<tr><td><b>Descrição</b></td><td><b>Valor</b></td></tr>';
+    html += `<tr><td>Total Receitas</td><td>${data.totalReceitas.toFixed(2)}</td></tr>`;
+    html += `<tr><td>Total Despesas</td><td>${data.totalDespesas.toFixed(2)}</td></tr>`;
+    html += `<tr><td>Total Dívidas</td><td>${data.totalDividas.toFixed(2)}</td></tr>`;
+    html += `<tr><td>Saldo</td><td>${data.saldo.toFixed(2)}</td></tr>`;
+    html += '<tr><td></td><td></td></tr>';
+    
+    if (Object.keys(data.transacoesPorCategoria).length > 0) {
+      html += '<tr><td colspan="2"><b>DISTRIBUIÇÃO POR CATEGORIA</b></td></tr>';
+      html += '<tr><td><b>Categoria</b></td><td><b>Valor</b></td></tr>';
+      Object.entries(data.transacoesPorCategoria)
+        .sort(([,a], [,b]) => b - a)
+        .forEach(([cat, val]) => {
+          html += `<tr><td>${cat}</td><td>${val.toFixed(2)}</td></tr>`;
+        });
+      html += '<tr><td></td><td></td></tr>';
+    }
+    
+    if (data.evolucaoMensal.length > 0) {
+      html += '<tr><td colspan="2"><b>EVOLUÇÃO MENSAL</b></td></tr>';
+      html += '<tr><td><b>Mês</b></td><td><b>Receitas / Despesas / Dívidas</b></td></tr>';
+      data.evolucaoMensal.forEach(item => {
+        html += `<tr><td>${item.mes}</td><td>R$ ${item.receitas.toFixed(2)} / R$ ${item.despesas.toFixed(2)} / R$ ${item.dividas.toFixed(2)}</td></tr>`;
+      });
+    }
+    
+    html += '</table></body></html>';
+    return html;
+  };
+
+  const generatePDFContent = (data: RelatorioData, tipo: string, periodo: string): string => {
+    let html = `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #6366F1; font-size: 24px; margin-bottom: 5px; }
+            h2 { color: #374151; font-size: 18px; margin-top: 20px; border-bottom: 2px solid #6366F1; padding-bottom: 5px; }
+            .info { color: #6B7280; font-size: 14px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #E5E7EB; }
+            th { background-color: #F9FAFB; font-weight: bold; }
+            .receita { color: #10B981; }
+            .despesa { color: #EF4444; }
+            .saldo { font-size: 20px; font-weight: bold; color: #6366F1; }
+            .footer { margin-top: 30px; text-align: center; color: #9CA3AF; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório Finansys</h1>
+          <div class="info">
+            <p><b>Tipo:</b> ${tipo} | <b>Período:</b> ${periodo.replace('_', ' ')}</p>
+            <p><b>Gerado em:</b> ${new Date().toLocaleDateString('pt-BR')}</p>
+          </div>
+          
+          <h2>Resumo Financeiro</h2>
+          <table>
+            <tr><td>Total Receitas</td><td class="receita">R$ ${data.totalReceitas.toFixed(2)}</td></tr>
+            <tr><td>Total Despesas</td><td class="despesa">R$ ${data.totalDespesas.toFixed(2)}</td></tr>
+            <tr><td>Total Dívidas</td><td class="despesa">R$ ${data.totalDividas.toFixed(2)}</td></tr>
+            <tr><td><b>Saldo</b></td><td class="saldo">R$ ${data.saldo.toFixed(2)}</td></tr>
+          </table>
+    `;
+    
+    if (Object.keys(data.transacoesPorCategoria).length > 0) {
+      html += '<h2>Distribuição por Categoria</h2><table><tr><th>Categoria</th><th>Valor</th></tr>';
+      Object.entries(data.transacoesPorCategoria)
+        .sort(([,a], [,b]) => b - a)
+        .forEach(([cat, val]) => {
+          html += `<tr><td>${cat}</td><td>R$ ${val.toFixed(2)}</td></tr>`;
+        });
+      html += '</table>';
+    }
+    
+    if (data.evolucaoMensal.length > 0) {
+      html += '<h2>Evolução Mensal</h2><table><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Dívidas</th></tr>';
+      data.evolucaoMensal.forEach(item => {
+        html += `<tr><td>${item.mes}</td><td class="receita">R$ ${item.receitas.toFixed(2)}</td><td class="despesa">R$ ${item.despesas.toFixed(2)}</td><td>R$ ${item.dividas.toFixed(2)}</td></tr>`;
+      });
+      html += '</table>';
+    }
+    
+    html += `
+          <div class="footer">
+            <p>Finansys - Sistema de Gestão Financeira</p>
+          </div>
+        </body>
+      </html>
+    `;
+    return html;
+  };
+
+  const handleDownloadRelatorio = async (relatorio: Relatorio) => {
+    try {
+      if (!relatorioData) {
+        Alert.alert("Erro", "Dados do relatório não disponíveis");
+        return;
+      }
+
+      setDownloading(relatorio.id_relatorio);
+
+      const tipo = relatorio.tipo;
+      const periodo = relatorio.periodo;
+      const formato = relatorio.formato;
+      
+      let content: string;
+      let filename: string;
+      let mimeType: string;
+
+      if (formato === 'csv') {
+        content = generateCSVContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.csv`;
+        mimeType = 'text/csv';
+      } else if (formato === 'excel') {
+        content = generateExcelContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.xls`;
+        mimeType = 'application/vnd.ms-excel';
+      } else {
+        content = generatePDFContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.html`;
+        mimeType = 'text/html';
+      }
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        Alert.alert("Sucesso", "Relatório baixado com sucesso!");
+      } else {
+        if (!FileSystem.documentDirectory) {
+          Alert.alert("Erro", "Não foi possível acessar o diretório de documentos");
+          return;
+        }
+
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        await FileSystem.writeAsStringAsync(fileUri, content, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        console.log('Arquivo salvo em:', fileUri);
+
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: mimeType,
+            UTI: formato === 'excel' ? 'org.openxmlformats.spreadsheetml.sheet' : undefined,
+          });
+        } else {
+          Alert.alert("Sucesso", `Relatório salvo no dispositivo.`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao baixar relatório:', error);
+      Alert.alert("Erro", `Não foi possível baixar o relatório: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownloadCurrentReport = async () => {
+    try {
+      if (!relatorioData) {
+        Alert.alert("Erro", "Dados do relatório não disponíveis");
+        return;
+      }
+
+      setDownloading(-1);
+
+      const formato = newRelatorio.formato;
+      const tipo = newRelatorio.tipo;
+      const periodo = selectedPeriodo;
+      
+      let content: string;
+      let filename: string;
+      let mimeType: string;
+
+      if (formato === 'csv') {
+        content = generateCSVContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.csv`;
+        mimeType = 'text/csv';
+      } else if (formato === 'excel') {
+        content = generateExcelContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.xls`;
+        mimeType = 'application/vnd.ms-excel';
+      } else {
+        content = generatePDFContent(relatorioData, tipo, periodo);
+        filename = `relatorio_${tipo}_${periodo}_${Date.now()}.html`;
+        mimeType = 'text/html';
+      }
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        Alert.alert("Sucesso", "Relatório baixado com sucesso!");
+      } else {
+        if (!FileSystem.documentDirectory) {
+          Alert.alert("Erro", "Não foi possível acessar o diretório de documentos");
+          return;
+        }
+
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        await FileSystem.writeAsStringAsync(fileUri, content, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        console.log('Arquivo salvo em:', fileUri);
+
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: mimeType,
+            UTI: formato === 'excel' ? 'org.openxmlformats.spreadsheetml.sheet' : undefined,
+          });
+        } else {
+          Alert.alert("Sucesso", `Relatório salvo no dispositivo.`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao baixar relatório:', error);
+      Alert.alert("Erro", `Não foi possível baixar o relatório: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const ProgressBar = ({ value, total, color }: { value: number, total: number, color: string }) => {
     const percentage = total > 0 ? Math.min(100, (value / total) * 100) : 0;
     return (
@@ -297,6 +587,24 @@ export default function Relatorios() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Download Current Report Button */}
+        {relatorioData && (
+          <TouchableOpacity 
+            style={styles.downloadCurrentButton}
+            onPress={handleDownloadCurrentReport}
+            disabled={downloading !== null}
+          >
+            {downloading === -1 ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <>
+                <Download size={20} color="#FFF" />
+                <Text style={styles.downloadCurrentButtonText}>Baixar Relatório Atual</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Main Balance Card - MODERN DESIGN */}
         {relatorioData && (
@@ -437,7 +745,11 @@ export default function Relatorios() {
             </View>
           ) : (
             relatorios.slice(0, 5).map((r) => (
-              <TouchableOpacity key={r.id_relatorio} style={styles.reportRow}>
+              <TouchableOpacity 
+                key={r.id_relatorio} 
+                style={styles.reportRow}
+                onPress={() => handleDownloadRelatorio(r)}
+              >
                 <View style={styles.reportIconContainer}>
                   <FileText size={20} color="#6366F1" />
                 </View>
@@ -447,7 +759,11 @@ export default function Relatorios() {
                   </Text>
                   <Text style={styles.reportDate}>{r.formato.toUpperCase()}</Text>
                 </View>
-                <Download size={20} color="#9CA3AF" />
+                {downloading === r.id_relatorio ? (
+                  <ActivityIndicator size="small" color="#6366F1" />
+                ) : (
+                  <Download size={20} color="#6366F1" />
+                )}
               </TouchableOpacity>
             ))
           )}
@@ -588,6 +904,27 @@ const styles = StyleSheet.create({
   periodTabTextActive: {
     color: '#111827',
     fontWeight: '600',
+  },
+  downloadCurrentButton: {
+    flexDirection: 'row',
+    backgroundColor: '#6366F1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    gap: 8,
+  },
+  downloadCurrentButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   balanceCard: {
     backgroundColor: '#111827',

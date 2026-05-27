@@ -8,6 +8,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Plus, FileText, Trash2 } from 'lucide-react-native';
 import { supabase } from '../integrations/supabase/client';
 import { formatCurrency } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
 
 interface Lancamento {
   id: string;
@@ -17,6 +18,7 @@ interface Lancamento {
 }
 
 export default function Lancamentos() {
+  const { user } = useAuth();
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -53,13 +55,44 @@ export default function Lancamentos() {
     }
 
     try {
-      const { error } = await supabase.from('lancamento').insert({
+      if (!user?.id) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      // Buscar o id_usuario numérico correspondente ao auth_id do Supabase
+      const { data: userData, error: userError } = await supabase
+        .from('usuario')
+        .select('id_usuario')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Erro ao buscar ID numérico do usuário:', userError);
+        Alert.alert('Erro', 'Não foi possível identificar seu perfil de usuário no sistema.');
+        return;
+      }
+
+      console.log('Tentando salvar lançamento:', {
         descricao: novoLancamento.descricao,
         valor: parseFloat(novoLancamento.valor.replace(',', '.')),
         data: novoLancamento.data,
+        id_usuario: userData.id_usuario,
       });
 
-      if (error) throw error;
+      const { data: insertData, error } = await supabase.from('lancamento').insert({
+        descricao: novoLancamento.descricao,
+        valor: parseFloat(novoLancamento.valor.replace(',', '.')),
+        data: novoLancamento.data,
+        id_usuario: userData.id_usuario,
+      }).select();
+
+      if (error) {
+        console.error('Erro detalhado do Supabase (Lançamento):', error);
+        throw error;
+      }
+
+      console.log('Lançamento inserido com sucesso:', insertData);
 
       Alert.alert('Sucesso', 'Lançamento registrado com sucesso');
       setShowForm(false);
@@ -75,13 +108,14 @@ export default function Lancamentos() {
         .order('data', { ascending: false });
 
       if (data) setLancamentos(data);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível registrar o lançamento');
+    } catch (error: any) {
+      console.error('Erro ao registrar lançamento:', error);
+      Alert.alert('Erro', `Não foi possível registrar o lançamento: ${error.message || 'Erro desconhecido'}`);
     }
   };
 
   const renderLancamento = ({ item }: { item: Lancamento }) => (
-    <Card key={item.id} style={styles.lancamentoCard}>
+    <Card key={`lancamento-${item.id}`} style={styles.lancamentoCard}>
       <CardHeader>
         <View style={styles.lancamentoHeader}>
           <View style={styles.lancamentoLeft}>
@@ -115,8 +149,8 @@ export default function Lancamentos() {
           />
         </View>
 
-        {showForm ? (
-          <Card key="form-card" style={styles.formCard}>
+        {showForm && (
+          <Card style={styles.formCard}>
             <CardHeader>
               <CardTitle>Novo Lançamento</CardTitle>
             </CardHeader>
@@ -149,10 +183,10 @@ export default function Lancamentos() {
               <Button title="Salvar" onPress={handleNovoLancamento} style={styles.saveButton} />
             </CardContent>
           </Card>
-        ) : null}
+        )}
 
         {loading ? (
-          <View key="loading-container" style={styles.loadingContainer}>
+          <View style={styles.loadingContainer}>
             {[...Array(5)].map((_, i) => (
               <Card key={`skeleton-${i}`} style={styles.card}>
                 <CardHeader>
@@ -165,7 +199,7 @@ export default function Lancamentos() {
             ))}
           </View>
         ) : lancamentos.length === 0 ? (
-          <Card key="empty-card" style={styles.emptyCard}>
+          <Card style={styles.emptyCard}>
             <CardContent style={styles.emptyContent}>
               <FileText size={48} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>Nenhum lançamento</Text>
@@ -175,9 +209,9 @@ export default function Lancamentos() {
             </CardContent>
           </Card>
         ) : (
-          <View key="list-container" style={styles.listContainer}>
-            {lancamentos.map((item) => (
-              <React.Fragment key={item.id}>
+          <View style={styles.listContainer}>
+            {lancamentos.map((item, index) => (
+              <React.Fragment key={`fragment-${item.id || index}`}>
                 {renderLancamento({ item })}
               </React.Fragment>
             ))}

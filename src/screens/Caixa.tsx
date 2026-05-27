@@ -60,15 +60,48 @@ export default function Caixa() {
     }
 
     try {
-      const { error } = await supabase.from('movimentacao_caixa').insert({
+      if (!user?.id) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      // Buscar o id_usuario numérico correspondente ao auth_id do Supabase
+      const { data: userData, error: userError } = await supabase
+        .from('usuario')
+        .select('id_usuario')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Erro ao buscar ID numérico do usuário:', userError);
+        Alert.alert('Erro', 'Não foi possível identificar seu perfil de usuário no sistema.');
+        return;
+      }
+
+      console.log('Tentando salvar movimentação:', {
         descricao: novaMovimentacao.descricao,
         valor: parseFloat(novaMovimentacao.valor.replace(',', '.')),
         tipo: novaMovimentacao.tipo,
         categoria: novaMovimentacao.categoria || 'Outros',
         data: new Date().toISOString().split('T')[0],
+        id_usuario: userData.id_usuario,
       });
 
-      if (error) throw error;
+      const { data: insertData, error } = await supabase.from('movimentacao_caixa').insert({
+        descricao: novaMovimentacao.descricao,
+        valor: parseFloat(novaMovimentacao.valor.replace(',', '.')),
+        tipo: novaMovimentacao.tipo,
+        categoria: novaMovimentacao.categoria || 'Outros',
+        data: new Date().toISOString().split('T')[0],
+        id_usuario: userData.id_usuario,
+      }).select();
+
+      if (error) {
+        console.error('Erro detalhado do Supabase:', error);
+        throw error;
+      }
+
+      console.log('Dados inseridos com sucesso:', insertData);
 
       Alert.alert('Sucesso', 'Movimentação registrada com sucesso');
       setShowForm(false);
@@ -86,8 +119,9 @@ export default function Caixa() {
         .order('data', { ascending: false });
 
       if (data) setMovimentacoes(data);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível registrar a movimentação');
+    } catch (error: any) {
+      console.error('Erro ao registrar movimentação:', error);
+      Alert.alert('Erro', `Não foi possível registrar a movimentação: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

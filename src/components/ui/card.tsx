@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, TextStyle, StyleProp } from 'react-native';
 import { cn } from '../../lib/utils';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 const Card: React.FC<CardProps> = ({ children, style }) => {
@@ -13,7 +13,7 @@ const Card: React.FC<CardProps> = ({ children, style }) => {
 
 interface CardHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 const CardHeader: React.FC<CardHeaderProps> = ({ children, style }) => {
@@ -22,7 +22,7 @@ const CardHeader: React.FC<CardHeaderProps> = ({ children, style }) => {
 
 interface CardTitleProps {
   children: React.ReactNode;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 }
 
 const CardTitle: React.FC<CardTitleProps> = ({ children, style }) => {
@@ -31,7 +31,7 @@ const CardTitle: React.FC<CardTitleProps> = ({ children, style }) => {
 
 interface CardDescriptionProps {
   children: React.ReactNode;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 }
 
 const CardDescription: React.FC<CardDescriptionProps> = ({ children, style }) => {
@@ -40,7 +40,7 @@ const CardDescription: React.FC<CardDescriptionProps> = ({ children, style }) =>
 
 interface CardContentProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 const CardContent: React.FC<CardContentProps> = ({ children, style }) => {
@@ -49,7 +49,7 @@ const CardContent: React.FC<CardContentProps> = ({ children, style }) => {
 
 interface CardFooterProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 const CardFooter: React.FC<CardFooterProps> = ({ children, style }) => {
